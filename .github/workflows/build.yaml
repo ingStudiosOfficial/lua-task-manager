@@ -1,0 +1,68 @@
+name: Build Executables
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        include:
+          - os: windows-latest
+            output: task-manager.exe
+            lua-url: https://sourceforge.net/projects/luabinaries/files/5.4.2/Tools%20Executables/lua-5.4.2_Win64_bin.zip
+          - os: ubuntu-latest
+            output: task-manager
+            lua-package: lua5.4
+          - os: macos-latest
+            output: task-manager
+            lua-package: lua
+    
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install Lua (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ${{ matrix.lua-package }} luarocks
+        
+    - name: Install Lua (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        brew install lua luarocks
+        
+    - name: Install Lua (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        choco install lua -y
+        
+    - name: Install Luastatic
+      run: |
+        git clone https://github.com/ers35/luastatic.git
+        
+    - name: Bundle Lua files
+      shell: bash
+      run: |
+        cd src
+        lua ../luastatic/luastatic.lua main.lua task_manager.lua fs_utils.lua
+      
+    - name: Find executable
+      shell: bash
+      run: |
+        ls -la src/
+        
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ matrix.os }}-executable
+        path: |
+          src/main
+          src/main.exe
