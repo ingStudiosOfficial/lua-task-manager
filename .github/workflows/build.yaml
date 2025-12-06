@@ -14,13 +14,13 @@ jobs:
         os: [windows-latest, ubuntu-latest, macos-latest]
         include:
           - os: windows-latest
-            output: task-manager.exe
+            output: ltm_windows.exe
             lua-url: https://sourceforge.net/projects/luabinaries/files/5.4.2/Tools%20Executables/lua-5.4.2_Win64_bin.zip
           - os: ubuntu-latest
-            output: task-manager
+            output: ltm_linux
             lua-package: lua5.4
           - os: macos-latest
-            output: task-manager
+            output: ltm_macos
             lua-package: lua
     
     runs-on: ${{ matrix.os }}
