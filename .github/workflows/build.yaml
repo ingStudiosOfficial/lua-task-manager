@@ -1,4 +1,4 @@
-name: Build Executables
+name: Build Packages
 
 on:
   push:
@@ -8,20 +8,28 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  package:
     strategy:
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
         include:
           - os: windows-latest
-            output: ltm_windows.exe
-            lua-url: https://sourceforge.net/projects/luabinaries/files/5.4.2/Tools%20Executables/lua-5.4.2_Win64_bin.zip
+            name: ltm_windows
+            script_ext: .bat
+            script_content: |
+              @echo off
+              lua src\main.lua %*
           - os: ubuntu-latest
-            output: ltm_linux
-            lua-package: lua5.4
+            name: ltm_linux
+            script_ext: .sh
+            script_content: |
+              #!/bin/bash
+              lua src/main.lua "$@"
           - os: macos-latest
-            output: ltm_macos
-            lua-package: lua
+            name: ltm_macos
+            script_ext: .sh
+            script_content: |
+              #!/bin/bash
+              lua src/main.lua "$@"
     
     runs-on: ${{ matrix.os }}
     
@@ -32,37 +40,45 @@ jobs:
       if: runner.os == 'Linux'
       run: |
         sudo apt-get update
-        sudo apt-get install -y ${{ matrix.lua-package }} luarocks
+        sudo apt-get install -y lua5.4
         
     - name: Install Lua (macOS)
       if: runner.os == 'macOS'
       run: |
-        brew install lua luarocks
+        brew install lua
         
     - name: Install Lua (Windows)
       if: runner.os == 'Windows'
       run: |
         choco install lua -y
         
-    - name: Install Luastatic
+    - name: Create launcher script
+      shell: bash
       run: |
-        git clone https://github.com/ers35/luastatic.git
+        echo "${{ matrix.script_content }}" > ltm${{ matrix.script_ext }}
+        chmod +x ltm${{ matrix.script_ext }} || true
         
-    - name: Bundle Lua files
+    - name: Create package
       shell: bash
       run: |
-        cd src
-        lua ../luastatic/luastatic.lua main.lua task_manager.lua fs_utils.lua
-      
-    - name: Find executable
+        mkdir -p package
+        cp -r src package/
+        cp ltm${{ matrix.script_ext }} package/
+        
+    - name: Create archive
       shell: bash
       run: |
-        ls -la src/
+        cd package
+        if [ "${{ runner.os }}" == "Windows" ]; then
+          7z a ../${{ matrix.name }}.zip .
+        else
+          tar -czf ../${{ matrix.name }}.tar.gz .
+        fi
         
     - name: Upload artifacts
       uses: actions/upload-artifact@v3
       with:
-        name: ${{ matrix.os }}-executable
+        name: ${{ matrix.name }}
         path: |
-          src/main
-          src/main.exe
+          ${{ matrix.name }}.zip
+          ${{ matrix.name }}.tar.gz
